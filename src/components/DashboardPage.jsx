@@ -13,27 +13,33 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
+// ... (giữ nguyên phần import và ChartJS.register)
+
 export default function DashboardPage({
   darkMode,
   toggleDarkMode,
   fetchSchedule,
   loading,
   nurses = [],
-  patients: propPatients = [],   // from parent (can be empty)
+  patients: propPatients = [],
   result = null,
-  refreshData,                   // global refresh function from parent (if available)
+  refreshData,
 }) {
-  // Local state to ensure patients data exists if possible
   const [localPatients, setLocalPatients] = useState(propPatients);
   const [patientsLoading, setPatientsLoading] = useState(false);
   const [patientsError, setPatientsError] = useState(null);
 
-  // Fetch patients if props are empty
-const fetchPatients = async () => {
+  // 1. PHẢI THÊM HÀM NÀY ĐỂ fetchPatients CHẠY ĐƯỢC
+  const getBaseURL = () => {
+    return import.meta.env.PROD 
+      ? 'https://140.115.59.61:8888' 
+      : '/api';
+  };
+
+  const fetchPatients = async () => {
     setPatientsLoading(true);
     setPatientsError(null);
     try {
-      console.log("[Dashboard] Fetching from:", `${getBaseURL()}/patients`);
       const res = await fetch(`${getBaseURL()}/patients`, {
         method: 'GET',
         headers: {
@@ -42,36 +48,38 @@ const fetchPatients = async () => {
         }
       });
 
-      if (!res.ok) throw new Error(`Lỗi Server: ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
 
       const contentType = res.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         const data = await res.json();
         setLocalPatients(data || []);
       } else {
-        throw new Error("Server không trả về JSON hợp lệ.");
+        throw new Error("Server returned non-JSON response");
       }
     } catch (err) {
-      console.error("[Dashboard] Error:", err);
+      console.error("[Dashboard] Fetch error:", err);
       setPatientsError(err.message);
     } finally {
       setPatientsLoading(false);
     }
   };
 
-  // SỬA LỖI CÚ PHÁP Ở ĐÂY
   useEffect(() => {
-    // Nếu props trống thì mới tự đi fetch
+    // Chỉ tự động fetch nếu cả 2 nguồn dữ liệu đều trống
     if (propPatients.length === 0 && localPatients.length === 0) {
       fetchPatients();
     }
   }, [propPatients]);
 
-  const patients = localPatients; // use local state
+  // 2. ƯU TIÊN LẤY DỮ LIỆU TỪ PROP NẾU CÓ, KHÔNG THÌ LẤY LOCAL
+  const patients = propPatients.length > 0 ? propPatients : localPatients;
 
-  // ── Data Calculations ────────────────────────────────────────────────
+  // ── Data Calculations (Phần này giữ nguyên logic của bạn) ──────────────
   const assignedCount = result?.assignments?.length || 0;
   const unmatched = result?.unmatched_patients || [];
+
+  // ... (Giữ nguyên toàn bộ phần tính toán chart data và phần return bên dưới)
 
   const patientPriority = {
     emergency: patients.filter(p => p?.priority === "emergency").length,
