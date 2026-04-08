@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://140.115.59.61:8888',
+        target: 'https://140.115.59.61:8888',
         changeOrigin: true,
         secure: false,
         // Rewrite rõ ràng - xóa /api trước khi gửi sang backend
