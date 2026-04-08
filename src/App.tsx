@@ -1,51 +1,59 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import DashboardPage from "./components/DashboardPage";
 import EntityManager from "./components/EntityManager";
 import AssignmentsPage from "./components/AssignmentsPage";
 
-export default function App() {
-  // ── Dark mode ─────────────────────────────────────────────
-  const [darkMode, setDarkMode] = useState(
-    () => JSON.parse(localStorage.getItem("darkMode") || "true")
-  );
+// Thay link này bằng link backend thật của bạn
+const BASE_URL = import.meta.env.PROD 
+  ? 'https://140.115.59.61:8888' 
+  : 'http://localhost:8000'; 
 
-  // ── Entities ──────────────────────────────────────────────
+export default function App() {
+  const [darkMode, setDarkMode] = useState(() => JSON.parse(localStorage.getItem("darkMode") || "true"));
   const [patients, setPatients] = useState([]);
   const [nurses, setNurses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  // ── Toggle dark mode ──────────────────────────────────────
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
   }, [darkMode]);
 
-  // ── Load patients and nurses ──────────────────────────────
-  useEffect(() => {
-    loadEntities();
-  }, []);
-
-  const loadEntities = async () => {
+  // Dùng useCallback để tránh re-render vô tận khi truyền xuống component con
+  const loadEntities = useCallback(async () => {
     try {
-      const patientRes = await fetch("/api/patients");
-      const nurseRes = await fetch("/api/nurses");
-      if (patientRes.ok) setPatients(await patientRes.json());
-      if (nurseRes.ok) setNurses(await nurseRes.json());
+      console.log("[App] Fetching data...");
+      const [patientRes, nurseRes] = await Promise.all([
+        fetch(`${BASE_URL}/api/patients`),
+        fetch(`${BASE_URL}/api/nurses`)
+      ]);
+
+      if (patientRes.ok) {
+        const pData = await patientRes.json();
+        setPatients(pData);
+      }
+      if (nurseRes.ok) {
+        const nData = await nurseRes.json();
+        setNurses(nData);
+      }
     } catch (err) {
       console.error("Error loading entities:", err);
     }
-  };
+  }, []);
 
-  // ── Fetch AI schedule ─────────────────────────────────────
+  useEffect(() => {
+    loadEntities();
+  }, [loadEntities]);
+
   const fetchSchedule = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/ai-schedule", { method: "POST" });
+      const res = await fetch(`${BASE_URL}/api/ai-schedule`, { method: "POST" });
       const data = await res.json();
       setResult(data);
-      loadEntities(); // refresh entities after schedule
+      loadEntities(); 
     } catch (err) {
       console.error("Error fetching schedule:", err);
     } finally {
@@ -53,40 +61,30 @@ export default function App() {
     }
   };
 
-  // ── Render ───────────────────────────────────────────────
   return (
     <Router>
       <div className="min-h-screen p-6 max-w-7xl mx-auto bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
-        {/* Navigation */}
-        <nav className="flex gap-4 mb-6 text-lg font-medium">
-          <Link to="/">Dashboard</Link>
-          <Link to="/entities">Manage Entities</Link>
-          <Link to="/assignments">Current Schedule</Link>
+        <nav className="flex gap-6 mb-8 text-lg font-medium border-b border-gray-200 dark:border-gray-800 pb-4">
+          <Link to="/" className="hover:text-blue-500 dark:text-gray-300">Dashboard</Link>
+          <Link to="/entities" className="hover:text-blue-500 dark:text-gray-300">Manage Entities</Link>
+          <Link to="/assignments" className="hover:text-blue-500 dark:text-gray-300">Current Schedule</Link>
         </nav>
 
         <Routes>
-          <Route
-            path="/"
-            element={
-              <DashboardPage
-                darkMode={darkMode}
-                toggleDarkMode={() => setDarkMode(!darkMode)}
-                fetchSchedule={fetchSchedule}
-                loading={loading}
-                nurses={nurses}
-                result={result}
-                refreshData={loadEntities}
-              />
-            }
-          />
-          <Route
-            path="/entities"
-            element={<EntityManager refresh={loadEntities} />}
-          />
-          <Route
-            path="/assignments"
-            element={<AssignmentsPage nurses={nurses} patients={patients} />}
-          />
+          <Route path="/" element={
+            <DashboardPage
+              darkMode={darkMode}
+              toggleDarkMode={() => setDarkMode(!darkMode)}
+              fetchSchedule={fetchSchedule}
+              loading={loading}
+              nurses={nurses}
+              patients={patients} // Đã thêm prop này
+              result={result}
+              refreshData={loadEntities}
+            />
+          }/>
+          <Route path="/entities" element={<EntityManager refresh={loadEntities} />}/>
+          <Route path="/assignments" element={<AssignmentsPage nurses={nurses} patients={patients} />}/>
         </Routes>
       </div>
     </Router>
