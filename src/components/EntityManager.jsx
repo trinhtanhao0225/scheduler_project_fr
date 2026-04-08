@@ -46,7 +46,7 @@ const apiFetch = async (endpoint, options = {}) => {
 
     // Local dùng proxy, Production gọi thẳng backend
     const baseURL = import.meta.env.PROD 
-      ? 'http://140.115.59.61:8888' 
+      ? 'https://140.115.59.61:8888' 
       : '/api';
 
     const fullUrl = `${baseURL}${cleanEndpoint}`;
