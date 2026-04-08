@@ -29,31 +29,48 @@ export default function DashboardPage({
   const [patientsError, setPatientsError] = useState(null);
 
   // Fetch patients if props are empty
+// Fetch patients if props are empty
   const fetchPatients = async () => {
     setPatientsLoading(true);
     setPatientsError(null);
     try {
-      console.log("[Dashboard] Starting fetch /api/patients...");
-      const res = await fetch("/api/patients");
+      console.log("[Dashboard] Starting fetch...");
+      
+      // SỬA Ở ĐÂY: Dùng đúng Logic URL như apiFetch của bạn
+      const baseURL = import.meta.env.PROD  
+        ? 'https://140.115.59.61:8888' 
+        : '/api'; // Ở local thì dùng proxy /api
+      
+      const res = await fetch(`${baseURL}/patients`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors' // Đảm bảo có mode cors
+      });
+
       if (!res.ok) {
-        throw new Error(`HTTP Error: ${res.status} - ${res.statusText}`);
+        throw new Error(`HTTP Error: ${res.status}`);
       }
-      const data = await res.json();
-      console.log("[Dashboard] Successfully fetched patients:", data.length, "records");
-      setLocalPatients(data || []);
+
+      // Kiểm tra Content-Type để tránh lỗi parse HTML (SyntaxError <)
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        console.log("[Dashboard] Success:", data.length, "records");
+        setLocalPatients(data || []);
+      } else {
+        throw new Error("Server trả về định dạng không phải JSON (có thể là lỗi HTML)");
+      }
+
     } catch (err) {
-      console.error("[Dashboard] Error fetching patients:", err);
+      console.error("[Dashboard] Error:", err);
       setPatientsError(err.message || "Unable to load patient list");
     } finally {
       setPatientsLoading(false);
     }
   };
-
-  useEffect(() => {
-    // Only fetch if no data and not already loading
-    if (propPatients.length === 0 && localPatients.length === 0 && !patientsLoading) {
-      fetchPatients();
-    }
   }, []);
 
   const patients = localPatients; // use local state
