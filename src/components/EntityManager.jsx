@@ -39,51 +39,18 @@ export default function EntityManager({ refresh }) {
     "DiabetesCare", "RespiratoryCare", "PhysicalTherapyAssist"
   ];
 
-  // ====================== API FETCH HELPER - ĐÃ FIX ======================
+  // ====================== FETCH HELPER ======================
   const apiFetch = async (endpoint, options = {}) => {
     try {
-      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-
-      // PRODUCTION: Gọi thẳng backend (Vercel)
-      // DEVELOPMENT: Dùng proxy /api (local)
-      const baseURL = import.meta.env.PROD 
-        ? 'http://140.115.59.61:8888' 
-        : '/api';
-
-      const fullUrl = `${baseURL}${cleanEndpoint}`;
-
-      console.log(`[API] ${import.meta.env.PROD ? '🌍 PRODUCTION' : '💻 LOCAL'} → ${fullUrl}`);
-
-      const res = await fetch(fullUrl, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...options.headers,
-        },
-        mode: 'cors',
-        credentials: 'omit',
-      });
-
-      console.log(`[API] Status: ${res.status} → ${fullUrl}`);
-
+      const res = await fetch(`/api${endpoint}`, options);
       if (!res.ok) {
-        const text = await res.text().catch(() => "No error body");
-        console.error(`[API ERROR] ${res.status}:`, text.substring(0, 400));
+        const text = await res.text().catch(() => "");
+        console.error(`API Error ${res.status} ${endpoint}:`, text);
         throw new Error(`HTTP ${res.status}`);
       }
-
-      const data = await res.json();
-      console.log(`[API SUCCESS] ${cleanEndpoint}:`, Array.isArray(data) ? `${data.length} items` : data);
-      return data;
-
+      return await res.json();
     } catch (err) {
-      console.error(`[API FAILED] ${endpoint}:`, err.message || err);
-
-      if (err.message.includes("Failed to fetch")) {
-        console.error("→ Nguyên nhân phổ biến: CORS, backend offline, hoặc IP không public từ Vercel.");
-      }
-
+      console.error(`Fetch failed ${endpoint}:`, err);
       throw err;
     }
   };
@@ -91,11 +58,10 @@ export default function EntityManager({ refresh }) {
   // ====================== FETCH FUNCTIONS ======================
   const fetchNurses = async () => {
     try {
-      setError(null);
       const data = await apiFetch("/nurses");
-      setNurses(Array.isArray(data) ? data : []);
+      setNurses(data);
     } catch (err) {
-      setError("Unable to load nurse list: " + (err.message || "Unknown error"));
+      setError("Unable to load nurse list: " + err.message);
     }
   };
 
@@ -107,7 +73,7 @@ export default function EntityManager({ refresh }) {
       const patientList = Array.isArray(data) ? data : (data?.data || []);
       setPatients(patientList);
     } catch (err) {
-      setError("Unable to load patient list: " + (err.message || "Unknown error"));
+      setError("Unable to load patient list: " + err.message);
       setPatients([]);
     } finally {
       setLoading(false);
@@ -170,13 +136,14 @@ export default function EntityManager({ refresh }) {
       };
       await apiFetch("/nurses", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       alert("✅ Nurse added successfully!");
       resetNurseForm();
       fetchNurses();
     } catch (err) {
-      alert("❌ Error adding nurse: " + err.message);
+      alert("❌ Error: " + err.message);
     }
   };
 
@@ -232,13 +199,14 @@ export default function EntityManager({ refresh }) {
       };
       await apiFetch("/patients", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       alert("✅ Patient added successfully!");
       resetPatientForm();
       fetchPatients();
     } catch (err) {
-      alert("❌ Error adding patient: " + err.message);
+      alert("❌ Error: " + err.message);
     }
   };
 
@@ -309,7 +277,9 @@ export default function EntityManager({ refresh }) {
           <button
             onClick={() => setActiveTab("nurses")}
             className={`px-8 py-4 font-semibold text-lg whitespace-nowrap transition-all ${
-              activeTab === "nurses" ? "border-b-4 border-green-600 text-green-600" : "text-gray-600 hover:text-gray-900"
+              activeTab === "nurses"
+                ? "border-b-4 border-green-600 text-green-600"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             👩‍⚕️ Nurse Management
@@ -317,7 +287,9 @@ export default function EntityManager({ refresh }) {
           <button
             onClick={() => setActiveTab("patients")}
             className={`px-8 py-4 font-semibold text-lg whitespace-nowrap transition-all ${
-              activeTab === "patients" ? "border-b-4 border-purple-600 text-purple-600" : "text-gray-600 hover:text-gray-900"
+              activeTab === "patients"
+                ? "border-b-4 border-purple-600 text-purple-600"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             🛏️ Patient Management
@@ -330,13 +302,13 @@ export default function EntityManager({ refresh }) {
             <div className="mb-6">
               <h2 className="text-2xl font-bold">👩‍⚕️ Nurse Management</h2>
               <p className="text-gray-500 mt-1">
-                Nurses on duty on <span className="font-semibold text-green-600">{selectedDate}</span> —{" "}
-                <span className="font-medium">{filteredNurses.length}</span> nurses
+                Nurses on duty on <span className="font-semibold text-green-600">{selectedDate}</span> 
+                — <span className="font-medium">{filteredNurses.length}</span> nurses
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              {/* Add New Nurse Form */}
+              {/* Add Nurse Form */}
               <div>
                 <h3 className="text-xl font-semibold mb-6">Add New Nurse</h3>
                 <div className="space-y-6">
@@ -348,6 +320,7 @@ export default function EntityManager({ refresh }) {
                     placeholder="Nurse full name"
                     className="w-full px-5 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500"
                   />
+
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm mb-1">Max minutes/day</label>
@@ -360,6 +333,7 @@ export default function EntityManager({ refresh }) {
                       />
                     </div>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium mb-2">Shift Schedule</label>
                     <div className="grid grid-cols-2 gap-4">
@@ -379,6 +353,7 @@ export default function EntityManager({ refresh }) {
                       />
                     </div>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium mb-3">Specialized Skills</label>
                     <div className="flex flex-wrap gap-3">
@@ -398,6 +373,7 @@ export default function EntityManager({ refresh }) {
                     </div>
                   </div>
                 </div>
+
                 <button
                   onClick={addNurse}
                   className="mt-8 w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-semibold text-lg transition"
@@ -409,22 +385,25 @@ export default function EntityManager({ refresh }) {
               {/* Nurse List */}
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-semibold text-lg">Nurse List ({filteredNurses.length})</h3>
+                  <h3 className="font-semibold text-lg">
+                    Nurse List ({filteredNurses.length})
+                  </h3>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => generateNurses(10)}
+                    <button 
+                      onClick={() => generateNurses(10)} 
                       className="px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm"
                     >
                       +10 Nurses
                     </button>
-                    <button
-                      onClick={() => generateNurses(30)}
+                    <button 
+                      onClick={() => generateNurses(30)} 
                       className="px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm"
                     >
                       +30 Nurses
                     </button>
                   </div>
                 </div>
+
                 <div className="max-h-[520px] overflow-y-auto border rounded-xl">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0">
@@ -470,13 +449,13 @@ export default function EntityManager({ refresh }) {
             <div className="mb-6">
               <h2 className="text-2xl font-bold">🛏️ Patient Management</h2>
               <p className="text-gray-500 mt-1">
-                Patients requiring care on <span className="font-semibold text-purple-600">{selectedDate}</span> —{" "}
-                <span className="font-medium">{filteredPatients.length}</span> patients
+                Patients requiring care on <span className="font-semibold text-purple-600">{selectedDate}</span> 
+                — <span className="font-medium">{filteredPatients.length}</span> patients
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              {/* Add New Patient Form */}
+              {/* Add Patient Form */}
               <div>
                 <h3 className="text-xl font-semibold mb-6">Add New Patient</h3>
                 <div className="space-y-6">
@@ -488,6 +467,7 @@ export default function EntityManager({ refresh }) {
                     placeholder="Patient full name"
                     className="w-full px-5 py-3 border border-gray-300 dark:border-gray-600 rounded-xl"
                   />
+
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm mb-1">Care Time (minutes)</label>
@@ -513,6 +493,7 @@ export default function EntityManager({ refresh }) {
                       </select>
                     </div>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium mb-3">Required Skills</label>
                     <div className="flex flex-wrap gap-3">
@@ -531,6 +512,7 @@ export default function EntityManager({ refresh }) {
                       ))}
                     </div>
                   </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <input
                       type="datetime-local"
@@ -548,6 +530,7 @@ export default function EntityManager({ refresh }) {
                     />
                   </div>
                 </div>
+
                 <button
                   onClick={addPatient}
                   className="mt-8 w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-semibold text-lg transition"
@@ -559,22 +542,25 @@ export default function EntityManager({ refresh }) {
               {/* Patient List */}
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-semibold text-lg">Patient List ({filteredPatients.length})</h3>
+                  <h3 className="font-semibold text-lg">
+                    Patient List ({filteredPatients.length})
+                  </h3>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => generatePatients(10)}
+                    <button 
+                      onClick={() => generatePatients(10)} 
                       className="px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm"
                     >
                       +10 Patients
                     </button>
-                    <button
-                      onClick={() => generatePatients(30)}
+                    <button 
+                      onClick={() => generatePatients(30)} 
                       className="px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm"
                     >
                       +30 Patients
                     </button>
                   </div>
                 </div>
+
                 <div className="max-h-[520px] overflow-y-auto border rounded-xl">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0">
