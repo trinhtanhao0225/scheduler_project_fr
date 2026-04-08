@@ -29,32 +29,38 @@ export default function DashboardPage({
   const [patientsError, setPatientsError] = useState(null);
 
   // Fetch patients if props are empty
-  const fetchPatients = async () => {
+const fetchPatients = async () => {
     setPatientsLoading(true);
     setPatientsError(null);
     try {
-      console.log("[Dashboard] Starting fetch /api/patients...");
-      const res = await fetch("/api/patients");
-      if (!res.ok) {
-        throw new Error(`HTTP Error: ${res.status} - ${res.statusText}`);
+      // 1. Xác định URL chính xác (Thay đổi IP/Domain cho đúng backend của bạn)
+      const baseUrl = import.meta.env.PROD 
+        ? 'https://140.115.59.61:8888' 
+        : ''; // Để trống nếu chạy local proxy
+
+      console.log(`[Dashboard] Fetching from: ${baseUrl}/api/patients`);
+
+      const res = await fetch(`${baseUrl}/api/patients`, {
+        headers: { "Accept": "application/json" } // Yêu cầu Server trả về JSON
+      });
+
+      // 2. Kiểm tra nếu trả về HTML thay vì JSON
+      const contentType = res.headers.get("content-type");
+      if (!res.ok || !contentType || !contentType.includes("application/json")) {
+        const text = await res.text(); // Đọc nội dung lỗi dưới dạng text
+        console.error("Server returned non-JSON:", text.slice(0, 100));
+        throw new Error(`Server error: Expected JSON but got ${contentType || 'HTML'}`);
       }
+
       const data = await res.json();
-      console.log("[Dashboard] Successfully fetched patients:", data.length, "records");
       setLocalPatients(data || []);
     } catch (err) {
-      console.error("[Dashboard] Error fetching patients:", err);
-      setPatientsError(err.message || "Unable to load patient list");
+      console.error("[Dashboard] Error:", err);
+      setPatientsError(err.message);
     } finally {
       setPatientsLoading(false);
     }
   };
-
-  useEffect(() => {
-    // Only fetch if no data and not already loading
-    if (propPatients.length === 0 && localPatients.length === 0 && !patientsLoading) {
-      fetchPatients();
-    }
-  }, []);
 
   const patients = localPatients; // use local state
 
