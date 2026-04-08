@@ -21,13 +21,13 @@ export default function App() {
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
   }, [darkMode]);
 
-  // Dùng useCallback để tránh re-render vô tận khi truyền xuống component con
+  // Đã xóa /api/ ở các đường dẫn dưới đây
   const loadEntities = useCallback(async () => {
     try {
-      console.log("[App] Fetching data...");
+      console.log("[App] Fetching data from root paths...");
       const [patientRes, nurseRes] = await Promise.all([
-        fetch(`${BASE_URL}/api/patients`),
-        fetch(`${BASE_URL}/api/nurses`)
+        fetch(`${BASE_URL}/patients`), // Đã sửa: /api/patients -> /patients
+        fetch(`${BASE_URL}/nurses`)    // Đã sửa: /api/nurses -> /nurses
       ]);
 
       if (patientRes.ok) {
@@ -50,7 +50,8 @@ export default function App() {
   const fetchSchedule = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/ai-schedule`, { method: "POST" });
+      // Đã sửa: /api/ai-schedule -> /ai-schedule (hoặc endpoint thực tế của bạn)
+      const res = await fetch(`${BASE_URL}/ai-schedule`, { method: "POST" });
       const data = await res.json();
       setResult(data);
       loadEntities(); 
@@ -65,9 +66,9 @@ export default function App() {
     <Router>
       <div className="min-h-screen p-6 max-w-7xl mx-auto bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
         <nav className="flex gap-6 mb-8 text-lg font-medium border-b border-gray-200 dark:border-gray-800 pb-4">
-          <Link to="/" className="hover:text-blue-500 dark:text-gray-300">Dashboard</Link>
-          <Link to="/entities" className="hover:text-blue-500 dark:text-gray-300">Manage Entities</Link>
-          <Link to="/assignments" className="hover:text-blue-500 dark:text-gray-300">Current Schedule</Link>
+          <Link to="/" className="dark:text-gray-300 hover:text-blue-500 transition-colors">Dashboard</Link>
+          <Link to="/entities" className="dark:text-gray-300 hover:text-blue-500 transition-colors">Manage Entities</Link>
+          <Link to="/assignments" className="dark:text-gray-300 hover:text-blue-500 transition-colors">Current Schedule</Link>
         </nav>
 
         <Routes>
@@ -78,7 +79,7 @@ export default function App() {
               fetchSchedule={fetchSchedule}
               loading={loading}
               nurses={nurses}
-              patients={patients} // Đã thêm prop này
+              patients={patients}
               result={result}
               refreshData={loadEntities}
             />
