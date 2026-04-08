@@ -40,45 +40,20 @@ export default function EntityManager({ refresh }) {
   ];
 
 // ====================== FETCH HELPER ======================
-const apiFetch = async (endpoint, options = {}) => {
-  try {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-
-    // Quyết định base URL: 
-    // - Local (dev): dùng proxy /api
-    // - Production (Vercel): gọi thẳng backend
-    const baseURL = import.meta.env.PROD 
-      ? 'http://140.115.59.61:8888' 
-      : '/api';
-
-    const fullUrl = `${baseURL}${cleanEndpoint}`;
-
-    console.log(`[API] ${import.meta.env.PROD ? 'PRODUCTION' : 'DEVELOPMENT'} → ${fullUrl}`);
-
-    const res = await fetch(fullUrl, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...options.headers,
-      },
-    });
-
-    console.log(`[API] Status: ${res.status} - ${fullUrl}`);
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "No error body");
-      console.error(`API Error ${res.status}:`, text.substring(0, 300));
-      throw new Error(`HTTP ${res.status}`);
+  const apiFetch = async (endpoint, options = {}) => {
+    try {
+      const res = await fetch(`/api${endpoint}`, options);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error(`API Error ${res.status} ${endpoint}:`, text);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return await res.json();
+    } catch (err) {
+      console.error(`Fetch failed ${endpoint}:`, err);
+      throw err;
     }
-
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error(`Fetch failed ${endpoint}:`, err);
-    throw err;
-  }
-};
+  };
   // ====================== FETCH FUNCTIONS ======================
   const fetchNurses = async () => {
     try {
