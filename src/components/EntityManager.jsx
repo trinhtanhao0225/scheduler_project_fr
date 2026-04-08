@@ -44,14 +44,11 @@ const apiFetch = async (endpoint, options = {}) => {
   try {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-    // Local dùng proxy, Production gọi thẳng backend
     const baseURL = import.meta.env.PROD 
       ? 'https://140.115.59.61:8888' 
       : '/api';
 
     const fullUrl = `${baseURL}${cleanEndpoint}`;
-
-    console.log(`[API] ${import.meta.env.PROD ? '🌍 PRODUCTION' : '💻 LOCAL'} → ${fullUrl}`);
 
     const res = await fetch(fullUrl, {
       ...options,
@@ -63,14 +60,25 @@ const apiFetch = async (endpoint, options = {}) => {
       mode: 'cors',
     });
 
+    // --- SỬA Ở ĐÂY ---
+    const contentType = res.headers.get("content-type");
+    
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error(`[API ERROR ${res.status}]`, text.substring(0, 300));
-      throw new Error(`HTTP ${res.status}`);
+      const errorText = await res.text().catch(() => "Unknown error");
+      console.error(`[API ERROR ${res.status}]`, errorText.substring(0, 200));
+      throw new Error(`Server returned ${res.status}`);
     }
 
-    const data = await res.json();
-    return data;
+    // Chỉ parse JSON nếu server thực sự trả về JSON
+    if (contentType && contentType.includes("application/json")) {
+      return await res.json();
+    } else {
+      const textData = await res.text();
+      console.warn("[WARNING] Phản hồi không phải JSON:", textData.substring(0, 100));
+      return textData; // Hoặc quăng lỗi tùy bạn
+    }
+    // -----------------
+
   } catch (err) {
     console.error(`[API FAILED] ${endpoint}:`, err);
     throw err;
